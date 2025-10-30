@@ -1,0 +1,4 @@
+Model,R2_Score,MAE,RMSE,Notes
+LinearRegression,0.861,31.085,38.253,Baseline
+Decision Tree,0.893,22.265,33.617,Better
+RandomForest,0.933,19.794,26.836,Best Model
