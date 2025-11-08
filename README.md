@@ -65,3 +65,43 @@ The goal is to demonstrate data cleaning, exploratory data analysis, model train
    python -m venv venv
    source venv/bin/activate   # macOS/Linux
    venv\Scripts\activate      # Windows
+
+
+
+
+## 📈 Week 2 — Model Optimization and Persistence
+
+**Objective:**  
+Enhance the Week 1 baseline model by performing hyperparameter tuning, analyzing feature importance, and saving the optimized model for deployment in the upcoming interface.
+
+### 🔧 Improvements Implemented
+
+1. **Hyperparameter Tuning:**  
+   Utilized `GridSearchCV` to identify the best combination of parameters for the Random Forest model, improving the R² score and reducing overfitting.
+
+2. **Feature Importance Analysis:**  
+   Generated a horizontal bar plot visualizing each feature’s contribution to the final prediction.
+
+3. **Model Persistence:**  
+   Saved the optimized model and the corresponding feature list as `.pkl` files using `joblib`, ensuring that the trained model can be reused later without retraining.
+
+4. **Drive Integration:**  
+   Configured the notebook to automatically save the model artifacts both locally and inside Google Drive (`/content/drive/MyDrive/EV_Range_Prediction`).
+
+### 🧩 Output Files
+
+| File Name | Description |
+|------------|-------------|
+| `optimized_rf_model.pkl` | Serialized optimized Random Forest model |
+| `model_features.pkl` | List of features used during model training |
+
+### 📊 Next Steps (Week 3 Preview)
+
+- Build a **Streamlit interface** for real-time predictions.  
+- Integrate a **Generative AI chatbot** to assist users with queries about the dataset and model performance.  
+- Deploy the complete project on Streamlit Cloud.
+
+---
+
+
+
