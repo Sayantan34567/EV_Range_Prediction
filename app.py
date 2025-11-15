@@ -22,11 +22,15 @@ with st.sidebar:
     st.header("⚙️ Admin Controls")
     if st.button("📘 Train Model on Server"):
         try:
-            from train_model import train_and_save
-            st.info("Training model... Please wait 1–2 minutes ⏳")
-            train_and_save(quick=True)
+            import train_model
+            st.info("Training model… Please wait 20–30 seconds ⏳")
+
+            # Call the main() function inside train_model.py
+            train_model.main()
+
             st.success("Model retrained & saved on server!")
             st.rerun()
+
         except Exception as e:
             st.error(f"Training failed: {e}")
 
@@ -181,3 +185,4 @@ if st.button("Send", key="send_btn"):
 
         st.session_state.chat_history.append({"role": "bot", "text": reply})
         st.rerun()
+
