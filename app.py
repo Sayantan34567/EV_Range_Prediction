@@ -4,34 +4,51 @@ import joblib
 import re
 import random
 
-# ---------------------------------------------------------
+# ======================================================================================
 # PAGE CONFIG
-# ---------------------------------------------------------
-st.set_page_config(page_title="EV Range Predictor", page_icon="🔋", layout="wide")
+# ======================================================================================
+st.set_page_config(page_title="EV Range Predictor", page_icon="🔋")
 
-st.title("EV Range Prediction System")
+st.title("🔋 EV Range Prediction System")
 
-# ---------------------------------------------------------
-# ADMIN PASSWORD (to hide training button)
-# ---------------------------------------------------------
-ADMIN_PASSWORD = "sayantan123"   # Change if needed
-admin_input = st.sidebar.text_input("Admin Password:", type="password")
-is_admin = (admin_input == ADMIN_PASSWORD)
+# ======================================================================================
+# LOAD MODEL FIRST (fixes NameError)
+# ======================================================================================
 
-# ---------------------------------------------------------
-# LOAD TRAINED MODEL
-# ---------------------------------------------------------
 MODEL_PATH = "final_ev_model.pkl"
 
 try:
     model = joblib.load(MODEL_PATH)
-    st.sidebar.success("Model loaded successfully!")
+    model_loaded = True
 except Exception as e:
-    st.sidebar.error(f"Failed to load model: {e}")
+    model = None
+    model_loaded = False
+    model_error = e
 
-# ---------------------------------------------------------
-# FEATURES USED BY THE MODEL
-# ---------------------------------------------------------
+
+# ======================================================================================
+# SIDEBAR — ADMIN TRAIN BUTTON
+# ======================================================================================
+with st.sidebar:
+    st.header("⚙️ Admin Controls")
+
+    if st.button("📘 Train Model on Server"):
+        try:
+            from train_model import train_and_save
+            st.info("Training model... Please wait ⏳")
+            train_and_save()       # this will retrain + save
+            st.success("Model retrained successfully! Reloading app...")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Training failed: {e}")
+
+
+# ======================================================================================
+# UI FORM INPUT
+# ======================================================================================
+st.header("Enter EV Specifications to Predict Range")
+
+# Features used by the model
 FEATURES = [
     "top_speed_kmh",
     "battery_capacity_kWh",
@@ -44,9 +61,7 @@ FEATURES = [
     "width_mm"
 ]
 
-# ---------------------------------------------------------
-# Default Values for non-public features
-# ---------------------------------------------------------
+# Default fallback values
 DEFAULTS = {
     "number_of_cells": 400,
     "torque_nm": 300,
@@ -55,34 +70,32 @@ DEFAULTS = {
     "width_mm": 1820
 }
 
-# ---------------------------------------------------------
-# LAYOUT: FORM (LEFT) | CHATBOT (RIGHT)
-# ---------------------------------------------------------
-left_col, right_col = st.columns([1.2, 1])
+# ---------------------------
+# FORM UI
+# ---------------------------
+with st.form("ev_form"):
+    battery_capacity = st.number_input(
+        "Battery Capacity (kWh)", min_value=20.0, max_value=150.0, value=60.0, step=1.0
+    )
+    top_speed = st.number_input(
+        "Top Speed (km/h)", min_value=80.0, max_value=350.0, value=150.0, step=5.0
+    )
+    vehicle_length = st.number_input(
+        "Vehicle Length (mm)", min_value=3000.0, max_value=6000.0, value=4500.0, step=50.0
+    )
+    acceleration = st.number_input(
+        "0–100 km/h Acceleration (seconds)", min_value=2.0, max_value=15.0, value=8.0, step=0.1
+    )
 
-# ---------------------------------------------------------
-# LEFT SIDE → FORM INPUT
-# ---------------------------------------------------------
-with left_col:
-    st.subheader("Enter EV Specifications")
+    submitted = st.form_submit_button("🔮 Predict Range")
 
-    with st.form("ev_form"):
-        battery_capacity = st.number_input(
-            "Battery Capacity (kWh)", 20.0, 150.0, 60.0, step=1.0
-        )
-        top_speed = st.number_input(
-            "Top Speed (km/h)", 80.0, 350.0, 150.0, step=5.0
-        )
-        vehicle_length = st.number_input(
-            "Vehicle Length (mm)", 3000.0, 6000.0, 4500.0, step=50.0
-        )
-        acceleration = st.number_input(
-            "0–100 km/h Acceleration (seconds)", 2.0, 15.0, 8.0, step=0.1
-        )
-
-        submitted = st.form_submit_button("🔮 Predict Range")
-
-    if submitted:
+# ======================================================================================
+# PREDICTION
+# ======================================================================================
+if submitted:
+    if not model_loaded:
+        st.error(f"Model is not loaded: {model_error}")
+    else:
         input_data = pd.DataFrame([{
             "top_speed_kmh": top_speed,
             "battery_capacity_kWh": battery_capacity,
@@ -97,87 +110,78 @@ with left_col:
 
         try:
             pred = model.predict(input_data)[0]
-            st.success(f"Predicted EV Range: **{pred:.2f} km**")
+            st.success(f"Estimated Range: **{pred:.2f} km**")
         except Exception as e:
             st.error(f"Prediction Error: {e}")
 
-# ---------------------------------------------------------
-# RIGHT SIDE → CHATBOT
-# ---------------------------------------------------------
-with right_col:
-    st.subheader("Range Assistant Chatbot")
+st.markdown("---")
 
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = [
-            {"role": "bot", "text": "Hi! Type 'predict 60,4500,180,7' or ask any EV question!"}
-        ]
+# ======================================================================================
+# CHATBOT SECTION
+# ======================================================================================
+st.header("Range Assistant Chatbot")
 
-    # Display chat
-    for msg in st.session_state.chat_history:
-        if msg["role"] == "user":
-            st.markdown(f"**You:** {msg['text']}")
-        else:
-            st.markdown(f"**Bot:** {msg['text']}")
+# Initialize chat history
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = [
+        {"role": "bot", "text": "Hello! You can type something like: predict 60,4500,180,7"}
+    ]
 
-    user_input = st.text_input("Message:", key="chat_input")
+# Display chat messages
+for msg in st.session_state.chat_history:
+    if msg["role"] == "user":
+        st.markdown(f"**You:** {msg['text']}")
+    else:
+        st.markdown(f"**Bot:** {msg['text']}")
 
-    def extract_numbers(text):
-        nums = re.findall(r"\d+\.?\d*", text)
-        return [float(n) for n in nums]
+# User text input
+user_input = st.text_input("Message:", key="chat_input")
 
-    def build_row(nums):
-        row = DEFAULTS.copy()
+def extract_numbers(text):
+    nums = re.findall(r"\d+\.?\d*", text)
+    return [float(n) for n in nums]
+
+def build_row(nums):
+    row = DEFAULTS.copy()
+    if len(nums) >= 4:
         row.update({
             "battery_capacity_kWh": nums[0],
             "length_mm": nums[1],
             "top_speed_kmh": nums[2],
             "acceleration_0_100_s": nums[3]
         })
-        return row
+    return row
 
-    if st.button("Send", key="send_btn"):
-        if user_input.strip() != "":
-            st.session_state.chat_history.append({"role": "user", "text": user_input})
-            msg = user_input.lower()
+# Send message
+if st.button("Send"):
+    if user_input.strip():
+        st.session_state.chat_history.append({"role": "user", "text": user_input})
 
-            if "predict" in msg:
-                nums = extract_numbers(user_input)
-                if len(nums) >= 4:
+        msg = user_input.lower()
+        reply = ""
+
+        if "predict" in msg:
+            nums = extract_numbers(user_input)
+            if len(nums) >= 4:
+                row = build_row(nums)
+                df_input = pd.DataFrame([row])
+
+                if model_loaded:
                     try:
-                        row = build_row(nums)
-                        df_input = pd.DataFrame([row])
                         pred = model.predict(df_input)[0]
                         reply = f"Estimated range: **{pred:.2f} km**"
-                    except Exception as e:
-                        reply = f"Prediction failed: {e}"
+                    except Exception:
+                        reply = "Prediction failed — please recheck your values."
                 else:
-                    reply = "Please provide 4 values like: predict 60,4500,180,8"
+                    reply = "Model is not loaded on the server."
             else:
-                reply = random.choice([
-                    "Try: predict 60,4500,180,7",
-                    "Ask me about speed, battery or acceleration!",
-                    "I'm here to help with EV range predictions."
-                ])
+                reply = "Please provide 4 values like: predict 60,4500,180,8"
 
-            st.session_state.chat_history.append({"role": "bot", "text": reply})
-            st.rerun()
+        else:
+            reply = random.choice([
+                "Try: predict 60,4500,180,7",
+                "You can ask about battery, speed, acceleration etc."
+            ])
 
-# ---------------------------------------------------------
-# ADMIN CONTROLS (HIDDEN FROM USERS)
-# ---------------------------------------------------------
-with st.sidebar:
-    if is_admin:
-        st.header("⚙️ Admin Controls")
-        st.info("You are in admin mode.")
-
-        if st.button("📘 Retrain Model on Server"):
-            try:
-                from train_model import train_and_save
-                st.info("Training model... please wait ⏳")
-                train_and_save(quick=True)
-                st.success("Model retrained & saved!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Training failed: {e}")
-    else:
-        st.info("🔒 Admin controls hidden")
+        st.session_state.chat_history.append({"role": "bot", "text": reply})
+        st.rerun()
