@@ -10,7 +10,7 @@ import os
 # ---------------------------------------------------------
 st.set_page_config(page_title="EV Range Predictor", page_icon="🔋")
 
-st.title("🔋 EV Range Prediction System")
+st.title("EV Range Prediction System")
 
 MODEL_PATH = "final_ev_model.pkl"
 SCALER_PATH = "scaler.pkl"
@@ -19,8 +19,8 @@ SCALER_PATH = "scaler.pkl"
 # TRAIN MODEL BUTTON (RUNS ON STREAMLIT CLOUD)
 # ---------------------------------------------------------
 with st.sidebar:
-    st.header("⚙️ Admin Controls")
-    if st.button("📘 Train Model on Server"):
+    st.header("Admin Controls")
+    if st.button("Train Model on Server"):
         try:
             import train_model
             st.info("Training model… Please wait 20–30 seconds ⏳")
@@ -219,7 +219,8 @@ if st.button("Send", key="send_btn"):
                 "Ask me about battery capacity, top speed, or acceleration."
             ])
 
-        st.session_state.chat_history.append({"role": "bot", "text": reply})
+        st.session_state.chat_history.append({"role": "bot", "text": bot_reply})
         st.rerun()
+
 
 
