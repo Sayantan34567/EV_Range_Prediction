@@ -100,32 +100,42 @@ with st.form("ev_form"):
 # ---------------------------------------------------------
 # PREDICT
 # ---------------------------------------------------------
+# ------------------- PREDICT FROM FORM (robust) -------------------
 if submitted:
-    if model is None or scaler is None:
-        st.error("Model not loaded. Train model first from the sidebar.")
-    else:
-        input_data = pd.DataFrame([{
-            "top_speed_kmh": top_speed,
-            "battery_capacity_kWh": battery_capacity,
-            "number_of_cells": DEFAULTS["number_of_cells"],
-            "torque_nm": DEFAULTS["torque_nm"],
-            "acceleration_0_100_s": acceleration,
-            "fast_charging_power_kw_dc": DEFAULTS["fast_charging_power_kw_dc"],
-            "towing_capacity_kg": DEFAULTS["towing_capacity_kg"],
-            "length_mm": vehicle_length,
-            "width_mm": DEFAULTS["width_mm"]
-        }])
+    # Build a safe input row that exactly matches FEATURES
+    FEATURES = [
+        "top_speed_kmh",
+        "battery_capacity_kWh",
+        "number_of_cells",
+        "torque_nm",
+        "acceleration_0_100_s",
+        "fast_charging_power_kw_dc",
+        "towing_capacity_kg",
+        "length_mm",
+        "width_mm"
+    ]
 
-        try:
-            # scale input
-            scaled = scaler.transform(input_data)
+    # defaults for any features we don't ask the user to input
+    DEFAULTS_ROW = {
+        "top_speed_kmh": float(top_speed),
+        "battery_capacity_kWh": float(battery_capacity),
+        "number_of_cells": DEFAULTS["number_of_cells"],
+        "torque_nm": DEFAULTS["torque_nm"],
+        "acceleration_0_100_s": float(acceleration),
+        "fast_charging_power_kw_dc": DEFAULTS["fast_charging_power_kw_dc"],
+        "towing_capacity_kg": DEFAULTS["towing_capacity_kg"],
+        "length_mm": float(vehicle_length),
+        "width_mm": DEFAULTS["width_mm"]
+    }
 
-            # predict
-            pred = model.predict(scaled)[0]
-            st.success(f"Predicted EV Range: **{pred:.2f} km**")
+    # Create DataFrame with EXACT column order and no extras
+    input_df = pd.DataFrame([DEFAULTS_ROW])[FEATURES]
 
-        except Exception as e:
-            st.error(f"Prediction Error: {e}")
+    try:
+        pred = model.predict(input_df)[0]
+        st.success(f"Predicted EV Range: **{pred:.2f} km**")
+    except Exception as e:
+        st.error(f"Prediction Error: {e}")
 
 st.markdown("---")
 
@@ -157,26 +167,52 @@ if st.button("Send", key="send_btn"):
         msg = user_input.lower()
 
         if "predict" in msg:
-            nums = extract_numbers(msg)
+            nums = extract_numbers(user_input)
+
+            FEATURES = [
+                "top_speed_kmh",
+                "battery_capacity_kWh",
+                "number_of_cells",
+                "torque_nm",
+                "acceleration_0_100_s",
+                "fast_charging_power_kw_dc",
+                "towing_capacity_kg",
+                "length_mm",
+                "width_mm"
+            ]
+
+            # Start with defaults
+            row = {
+                "top_speed_kmh": DEFAULTS["number_of_cells"],   
+                "battery_capacity_kWh": DEFAULTS["number_of_cells"],
+                "number_of_cells": DEFAULTS["number_of_cells"],
+                "torque_nm": DEFAULTS["torque_nm"],
+                "acceleration_0_100_s": DEFAULTS["number_of_cells"],
+                "fast_charging_power_kw_dc": DEFAULTS["fast_charging_power_kw_dc"],
+                "towing_capacity_kg": DEFAULTS["towing_capacity_kg"],
+                "length_mm": DEFAULTS["width_mm"],
+                "width_mm": DEFAULTS["width_mm"]
+            }
+
+            # Overwrite defaults with extracted values
             if len(nums) >= 4:
-                row = DEFAULTS.copy()
-                row.update({
-                    "battery_capacity_kWh": nums[0],
-                    "length_mm": nums[1],
-                    "top_speed_kmh": nums[2],
-                    "acceleration_0_100_s": nums[3],
-                })
-
-                df_input = pd.DataFrame([row])
-
-                try:
-                    scaled = scaler.transform(df_input)
-                    pred = model.predict(scaled)[0]
-                    reply = f"Estimated range: **{pred:.2f} km**"
-                except Exception as e:
-                    reply = f"Prediction failed: {e}"
+                row["battery_capacity_kWh"] = nums[0]
+                row["length_mm"] = nums[1]
+                row["top_speed_kmh"] = nums[2]
+                row["acceleration_0_100_s"] = nums[3]
             else:
-                reply = "Please provide 4 numbers like: predict 60,4500,180,8"
+                bot_reply = "Please provide 4 values like: predict 60,4500,180,8"
+                st.session_state.chat_history.append({"role": "bot", "text": bot_reply})
+                st.rerun()
+
+            # Final dataframe with correct order
+            df_input = pd.DataFrame([row])[FEATURES]
+
+            try:
+                pred = model.predict(df_input)[0]
+                bot_reply = f"Estimated range: **{pred:.2f} km**"
+            except Exception as e:
+                bot_reply = f"Prediction failed: {e}"
         else:
             reply = random.choice([
                 "Try: predict 60,4500,180,7!",
@@ -185,4 +221,5 @@ if st.button("Send", key="send_btn"):
 
         st.session_state.chat_history.append({"role": "bot", "text": reply})
         st.rerun()
+
 
